@@ -14,7 +14,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2023-09-26T20:15:34Z"
+    createdAt: "2023-09-26T20:35:03Z"
     operators.operatorframework.io/builder: operator-sdk-v1.29.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: multicluster-engine.v0.0.1
@@ -2397,7 +2397,29 @@ spec:
             metadata:
               labels:
                 control-plane: backplane-operator
+                ocm-antiaffinity-selector: backplane-operator
             spec:
+              affinity:
+                podAntiAffinity:
+                  preferredDuringSchedulingIgnoredDuringExecution:
+                  - podAffinityTerm:
+                      labelSelector:
+                        matchExpressions:
+                        - key: ocm-antiaffinity-selector
+                          operator: In
+                          values:
+                          - backplane-operator
+                      topologyKey: topology.kubernetes.io/zone
+                    weight: 70
+                  - podAffinityTerm:
+                      labelSelector:
+                        matchExpressions:
+                        - key: ocm-antiaffinity-selector
+                          operator: In
+                          values:
+                          - backplane-operator
+                      topologyKey: kubernetes.io/hostname
+                    weight: 35
               containers:
               - args:
                 - --leader-elect
@@ -2432,12 +2454,19 @@ spec:
                     memory: 20Mi
                 securityContext:
                   allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                  privileged: false
+                  readOnlyRootFilesystem: true
                 volumeMounts:
                 - mountPath: /tmp/k8s-webhook-server/serving-certs
                   name: cert
                   readOnly: true
               securityContext:
                 runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
               serviceAccountName: multicluster-engine-operator
               terminationGracePeriodSeconds: 10
               volumes:
